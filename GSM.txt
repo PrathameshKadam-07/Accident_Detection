@@ -1,0 +1,18 @@
+GSM MODULE :-
+Code:-
+# Function to send SMS using SIM800L GSM module
+def send_sms(phone_number, message):
+    # Set GSM module to text mode
+    gsmSerial.write("AT+CMGF=1\r".encode('utf-8'))
+    sleep(1)
+    # Set recipient phone number
+    gsmSerial.write(("AT+CMGS=\"{}\"\r".format(phone_number)).encode('utf-8'))
+    sleep(1)
+    # Send message
+    gsmSerial.write(("{}\r".format(message)).encode('utf-8'))
+    sleep(1)
+    # Send Ctrl+Z to indicate end of message
+    gsmSerial.write("\x1A".encode('utf-8'))
+    sleep(1)
+
+ 

@@ -1,0 +1,108 @@
+import smbus                                    # Import SMBus module of I2C
+from time import sleep          # Import sleep module from time
+import serial
+ 
+# Some MPU6050 Registers and their Address
+PWR_MGMT_1   = 0x6B
+SMPLRT_DIV   = 0x19
+CONFIG       = 0x1A
+GYRO_CONFIG  = 0x1B
+INT_ENABLE   = 0x38
+ACCEL_XOUT_H = 0x3B
+ACCEL_YOUT_H = 0x3D
+ACCEL_ZOUT_H = 0x3F
+GYRO_XOUT_H  = 0x43
+GYRO_YOUT_H  = 0x45
+GYRO_ZOUT_H  = 0x47
+ 
+def MPU_Init():
+    # Write to sample rate register
+    bus.write_byte_data(Device_Address, SMPLRT_DIV, 7)
+ 
+    # Write to power management register
+    bus.write_byte_data(Device_Address, PWR_MGMT_1, 1)
+ 
+    # Write to Configuration register
+    bus.write_byte_data(Device_Address, CONFIG, 0)
+ 
+    # Write to Gyro configuration register
+    bus.write_byte_data(Device_Address, GYRO_CONFIG, 24)
+ 
+    # Write to interrupt enable register
+    bus.write_byte_data(Device_Address, INT_ENABLE, 1)
+ 
+def read_raw_data(addr):
+    # Accelero and Gyro value are 16-bit
+    high = bus.read_byte_data(Device_Address, addr)
+    low = bus.read_byte_data(Device_Address, addr+1)
+ 
+    # Concatenate higher and lower value
+    value = ((high << 8) | low)
+ 
+    # To get signed value from MPU6050
+    if(value > 32768):
+        value = value - 65536
+    return value
+ 
+def normalize_data(x, y, z):
+    # Calculate the sum of absolute values
+    total_sum = abs(x) + abs(y) + abs(z)
+    # Normalize each component by dividing by the sum
+    norm_x = x / total_sum
+    norm_y = y / total_sum
+    norm_z = z / total_sum
+ 
+    return norm_x, norm_y, norm_z
+ 
+# Function to send SMS using SIM800L GSM module
+def send_sms(phone_number, message):
+    # Set GSM module to text mode
+    gsmSerial.write("AT+CMGF=1\r".encode('utf-8'))
+    sleep(1)
+    # Set recipient phone number
+    gsmSerial.write(("AT+CMGS=\"{}\"\r".format(phone_number)).encode('utf-8'))
+    sleep(1)
+    # Send message
+    gsmSerial.write(("{}\r".format(message)).encode('utf-8'))
+    sleep(1)
+    # Send Ctrl+Z to indicate end of message
+    gsmSerial.write("\x1A".encode('utf-8'))
+    sleep(1)
+ 
+# Initialize MPU6050
+bus = smbus.SMBus(1)   # or bus = smbus.SMBus(0) for older version boards
+Device_Address = 0x68   # MPU6050 device address
+MPU_Init()
+ 
+print("Reading Data of Gyroscope and Accelerometer")
+ 
+# Initialize serial port for GSM module
+gsmSerial = serial.Serial("/dev/ttyS0", baudrate=9600, timeout=1)
+ 
+# Set phone number to receive SMS alert
+phone_number = "+1234567890"
+ 
+accident_detected = False
+ 
+while not accident_detected:
+    # Read Accelerometer raw value
+    acc_x = read_raw_data(ACCEL_XOUT_H)
+    acc_y = read_raw_data(ACCEL_YOUT_H)
+    acc_z = read_raw_data(ACCEL_ZOUT_H)
+ 
+    # Normalize accelerometer readings
+    norm_acc_x, norm_acc_y, norm_acc_z = normalize_data(acc_x, acc_y, acc_z)
+ 
+    print("X={:.2f}, Y={:.2f}, Z={:.2f}".format(norm_acc_x, norm_acc_y, norm_acc_z))
+ 
+    # Threshold for detecting an accident
+    threshold = 0.3  # Adjust as needed
+ 
+    # Check if any normalized acceleration component exceeds the threshold
+    if norm_acc_x > threshold or norm_acc_y > threshold or norm_acc_z > threshold:
+        print("Accident detected!")
+        accident_detected = True
+        # Send SMS alert
+        send_sms(phone_number, "Accident detected!")
+ 
+    sleep(1)
