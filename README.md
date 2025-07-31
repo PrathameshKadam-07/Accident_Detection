@@ -37,7 +37,8 @@ This system monitors a vehicle’s motion through accelerometer and gyroscope da
 | Breadboard & Wires  | Prototyping setup                                |
 | Power Supply        | For Raspberry Pi and modules                     |
 
----
+--- 
+
 
 ## 🧪 Software Stack
 
